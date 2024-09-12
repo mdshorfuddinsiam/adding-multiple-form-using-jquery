@@ -1,0 +1,93 @@
+@extends('layouts.app')
+
+@section('content')
+    <div id="forms-container">
+        <!-- Initial Form -->
+        <div class="form-wrapper" id="form_1">
+            <form method="POST" action="{{ route('store.form') }}">
+                @csrf
+                <input type="text" name="name_1" placeholder="Name" required>
+                <input type="email" name="email_1" placeholder="Email" required>
+                <input type="text" name="phone_1" placeholder="Phone" required>
+                <button type="submit">Submit</button>
+            </form>
+            <button class="add-more">Add Another Form</button>
+            <button class="remove-form">Remove This Form</button>
+        </div>
+    </div>
+@endsection
+
+@section('scripts')
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    let formCount = 1; // Track the number of forms
+
+    // Add new form on button click
+    $(document).on('click', '.add-more', function () {
+        formCount++;
+        
+        // Clone and append new form with unique field names
+        let newForm = `<div class="form-wrapper" id="form_${formCount}">
+            <form method="POST" action="{{ route('store.form') }}">
+                @csrf
+                <input type="text" name="name_${formCount}" placeholder="Name" required>
+                <input type="email" name="email_${formCount}" placeholder="Email" required>
+                <input type="text" name="phone_${formCount}" placeholder="Phone" required>
+                <button type="submit">Submit</button>
+            </form>
+            <button class="add-more">Add Another Form</button>
+            <button class="remove-form">Remove This Form</button>
+        </div>`;
+
+        $('#forms-container').append(newForm);
+    });
+
+    // Remove form on "Remove" button click, but ensure at least one form stays
+    $(document).on('click', '.remove-form', function () {
+        if ($('.form-wrapper').length > 1) {
+            // Remove the form's parent div
+            $(this).closest('.form-wrapper').remove();
+        } else {
+            alert('At least one form is required.');
+        }
+    });
+</script>
+@endsection
+
+
+// _____________________________________________________________________________________________________________
+
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+
+class FormController extends Controller
+{
+    public function store(Request $request)
+    {
+        $formData = $request->all();
+
+        foreach ($formData as $key => $value) {
+            if (strpos($key, 'name_') !== false) {
+                $index = explode('_', $key)[1]; // Get the form number
+
+                $name = $formData["name_{$index}"];
+                $email = $formData["email_{$index}"];
+                $phone = $formData["phone_{$index}"];
+
+                // Save to the database or process the form data
+                // Example:
+                // User::create([
+                //     'name' => $name,
+                //     'email' => $email,
+                //     'phone' => $phone,
+                // ]);
+
+                // For now, let's just return the received data
+                return redirect()->back()->with('message', 'Form submitted successfully!');
+            }
+        }
+    }
+}
+
