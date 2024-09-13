@@ -1,0 +1,132 @@
+@extends('layouts.app')
+
+@section('content')
+    <div id="forms-container">
+        <!-- Initial Form -->
+        <div class="form-wrapper" id="form_1">
+            <form method="POST" action="{{ route('store.form') }}">
+                @csrf
+                <div class="name-fields">
+                    <div class="name-field-wrapper" id="name_field_1_1">
+                        <input type="text" name="name_1[]" placeholder="Name" required>
+                        <button type="button" class="add-name-field">Add Another Name</button>
+                        <button type="button" class="remove-name-field">Remove This Name</button>
+                    </div>
+                </div>
+                <input type="email" name="email_1" placeholder="Email" required>
+                <input type="text" name="phone_1" placeholder="Phone" required>
+                <button type="submit">Submit</button>
+            </form>
+            <button class="add-more">Add Another Form</button>
+            <button class="remove-form">Remove This Form</button>
+        </div>
+    </div>
+@endsection
+
+@section('scripts')
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    let formCount = 1; // Initialize the form counter
+    let nameFieldCount = {}; // Track name field counts for each form
+
+    // Add a new form on "Add Another Form" button click
+    $(document).on('click', '.add-more', function () {
+        formCount++;
+        nameFieldCount[formCount] = 1; // Initialize name field count for the new form
+
+        // Create the new form HTML with unique field names
+        let newForm = `<div class="form-wrapper" id="form_${formCount}">
+            <form method="POST" action="{{ route('store.form') }}">
+                @csrf
+                <div class="name-fields">
+                    <div class="name-field-wrapper" id="name_field_${formCount}_1">
+                        <input type="text" name="name_${formCount}[]" placeholder="Name" required>
+                        <button type="button" class="add-name-field">Add Another Name</button>
+                        <button type="button" class="remove-name-field">Remove This Name</button>
+                    </div>
+                </div>
+                <input type="email" name="email_${formCount}" placeholder="Email" required>
+                <input type="text" name="phone_${formCount}" placeholder="Phone" required>
+                <button type="submit">Submit</button>
+            </form>
+            <button class="add-more">Add Another Form</button>
+            <button class="remove-form">Remove This Form</button>
+        </div>`;
+
+        $('#forms-container').append(newForm);
+    });
+
+    // Add a new name field within a form
+    $(document).on('click', '.add-name-field', function () {
+        let formWrapper = $(this).closest('.form-wrapper');
+        let nameFieldWrapper = $(this).closest('.name-fields');
+        let formId = formWrapper.attr('id').split('_')[1];
+        let nameFieldIndex = ++nameFieldCount[formId]; // Increment name field index for the current form
+
+        // Create new name field HTML
+        let newNameField = `<div class="name-field-wrapper" id="name_field_${formId}_${nameFieldIndex}">
+            <input type="text" name="name_${formId}[]" placeholder="Name" required>
+            <button type="button" class="add-name-field">Add Another Name</button>
+            <button type="button" class="remove-name-field">Remove This Name</button>
+        </div>`;
+
+        nameFieldWrapper.append(newNameField);
+    });
+
+    // Remove a name field within a form
+    $(document).on('click', '.remove-name-field', function () {
+        let nameFieldWrapper = $(this).closest('.name-field-wrapper');
+        if (nameFieldWrapper.siblings('.name-field-wrapper').length > 0) {
+            nameFieldWrapper.remove();
+        } else {
+            alert('At least one name field is required.');
+        }
+    });
+
+    // Remove a form
+    $(document).on('click', '.remove-form', function () {
+        if ($('.form-wrapper').length > 1) {
+            $(this).closest('.form-wrapper').remove();
+        } else {
+            alert('At least one form is required.');
+        }
+    });
+</script>
+@endsection
+
+
+// ________________________________________________________________________________________________
+
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+
+class FormController extends Controller
+{
+    public function store(Request $request)
+    {
+        $formData = $request->all();
+
+        // Process all form submissions
+        foreach ($formData as $key => $value) {
+            if (strpos($key, 'name_') !== false) {
+                $formId = explode('_', $key)[1]; // Get the form number
+
+                foreach ($request->input("name_{$formId}") as $index => $name) {
+                    $email = $formData["email_{$formId}"];
+                    $phone = $formData["phone_{$formId}"];
+
+                    // Save the form data to the database
+                    User::create([
+                        'name' => $name,
+                        'email' => $email,
+                        'phone' => $phone,
+                    ]);
+                }
+            }
+        }
+
+        return redirect()->back()->with('message', 'Forms submitted successfully!');
+    }
+}
