@@ -1,0 +1,145 @@
+// Create Projects Table
+Schema::create('projects', function (Blueprint $table) {
+    $table->id();
+    $table->string('name');
+    $table->timestamps();
+});
+
+// Create Tasks Table
+Schema::create('tasks', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('project_id')->constrained()->onDelete('cascade');
+    $table->string('task_name');
+    $table->timestamps();
+});
+
+// Create Subtasks Table
+Schema::create('subtasks', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('task_id')->constrained()->onDelete('cascade');
+    $table->string('subtask_name');
+    $table->timestamps();
+});
+
+// ____________________________________________________________________
+
+class Project extends Model
+{
+    public function tasks()
+    {
+        return $this->hasMany(Task::class);
+    }
+}
+
+class Task extends Model
+{
+    public function project()
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    public function subtasks()
+    {
+        return $this->hasMany(Subtask::class);
+    }
+}
+
+class Subtask extends Model
+{
+    public function task()
+    {
+        return $this->belongsTo(Task::class);
+    }
+}
+
+// ___________________________________________________________________
+
+<form id="projectForm" method="POST" action="{{ route('projects.store') }}">
+    @csrf
+    <div class="form-group">
+        <label for="project_name">Project Name</label>
+        <input type="text" name="project_name" class="form-control" required>
+    </div>
+
+    <div id="tasks">
+        <div class="task-group">
+            <h4>Task</h4>
+            <input type="text" name="tasks[0][task_name]" class="form-control" placeholder="Task Name">
+
+            <div class="subtasks">
+                <h5>Subtask</h5>
+                <input type="text" name="tasks[0][subtasks][0][subtask_name]" class="form-control" placeholder="Subtask Name">
+            </div>
+            <button type="button" class="add-subtask">Add Subtask</button>
+        </div>
+    </div>
+    <button type="button" id="add-task">Add Task</button>
+    <button type="submit">Submit</button>
+</form>
+
+
+// _______________________________________________________________
+
+$(document).ready(function() {
+    let taskCount = 1;
+    let subtaskCount = 1;
+
+    // Add new Task
+    $('#add-task').click(function() {
+        $('#tasks').append(`
+            <div class="task-group">
+                <h4>Task</h4>
+                <input type="text" name="tasks[${taskCount}][task_name]" class="form-control" placeholder="Task Name">
+
+                <div class="subtasks">
+                    <h5>Subtask</h5>
+                    <input type="text" name="tasks[${taskCount}][subtasks][0][subtask_name]" class="form-control" placeholder="Subtask Name">
+                </div>
+                <button type="button" class="add-subtask">Add Subtask</button>
+            </div>
+        `);
+        taskCount++;
+    });
+
+    // Add new Subtask inside a task
+    $(document).on('click', '.add-subtask', function() {
+        const taskIndex = $(this).closest('.task-group').index();
+        $(this).siblings('.subtasks').append(`
+            <input type="text" name="tasks[${taskIndex}][subtasks][${subtaskCount}][subtask_name]" class="form-control" placeholder="Subtask Name">
+        `);
+        subtaskCount++;
+    });
+});
+
+// ___________________________________________________________________________
+
+public function store(Request $request)
+{
+    // Validate project input
+    $request->validate([
+        'project_name' => 'required|string',
+        'tasks.*.task_name' => 'required|string',
+        'tasks.*.subtasks.*.subtask_name' => 'required|string'
+    ]);
+
+    // Create Project
+    $project = Project::create(['name' => $request->project_name]);
+
+    // Loop through tasks
+    foreach ($request->tasks as $taskInput) {
+        $task = $project->tasks()->create(['task_name' => $taskInput['task_name']]);
+
+        // Loop through subtasks
+        foreach ($taskInput['subtasks'] as $subtaskInput) {
+            $task->subtasks()->create(['subtask_name' => $subtaskInput['subtask_name']]);
+        }
+    }
+
+    return redirect()->back()->with('success', 'Project Created Successfully!');
+}
+
+
+// __________________________________________________________________________
+
+Route::post('/projects/store', [ProjectController::class, 'store'])->name('projects.store');
+
